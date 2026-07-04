@@ -1,0 +1,481 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ------------------------------------------------------------
+// ENUM TYPES
+// ------------------------------------------------------------
+
+enum UserRole {
+  patient
+  doctor
+  admin
+  staff
+}
+
+enum GenderType {
+  male
+  female
+  other
+  prefer_not_to_say
+}
+
+enum AppointmentStatus {
+  pending
+  confirmed
+  in_progress
+  completed
+  cancelled
+  no_show
+}
+
+enum PaymentMethod {
+  mobile_money
+  card
+  cash
+  insurance
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum NotificationType {
+  appointment_reminder
+  appointment_confirmation
+  record_update
+  system_alert
+}
+
+enum NotificationStatus {
+  queued
+  sent
+  failed
+}
+
+enum ReferralStatus {
+  pending
+  accepted
+  completed
+  declined
+}
+
+enum ConversationType {
+  direct
+  department
+  case
+}
+
+enum BedStatus {
+  available
+  occupied
+  maintenance
+}
+
+enum AdmissionStatus {
+  admitted
+  discharged
+}
+
+enum LabOrderStatus {
+  ordered
+  in_progress
+  completed
+  cancelled
+}
+
+// ------------------------------------------------------------
+// MODELS
+// ------------------------------------------------------------
+
+model User {
+  id                       String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                    String                    @unique @db.VarChar(255)
+  passwordHash             String                    @map("password_hash") @db.VarChar(255)
+  role                     UserRole
+  isActive                 Boolean                   @default(true) @map("is_active")
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt                DateTime                  @default(now()) @map("updated_at") @db.Timestamptz
+  patient                  Patient?
+  doctor                   Doctor?
+  staff                    Staff?
+  uploadedDocuments        Document[]                @relation("UploadedDocuments")
+  notifications            Notification[]
+  auditLogs                AuditLog[]
+  conversationParticipants ConversationParticipant[]
+  messages                 Message[]
+  messageReadReceipts      MessageReadReceipt[]
+  recordedLabResults       LabResult[]               @relation("RecordedLabResults")
+  performedTransactions    InventoryTransaction[]    @relation("PerformedTransactions")
+
+  @@map("users")
+}
+
+model Patient {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String         @unique @map("user_id") @db.Uuid
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dateOfBirth      DateTime       @map("date_of_birth") @db.Date
+  gender           GenderType
+  phone            String         @db.VarChar(20)
+  address          String?
+  nhisNumber       String?        @map("nhis_number") @db.VarChar(30)
+  emergencyContact String?        @map("emergency_contact") @db.VarChar(100)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime       @default(now()) @map("updated_at") @db.Timestamptz
+  appointments     Appointment[]
+  medicalRecords   MedicalRecord[]
+  referrals        Referral[]
+  conversations    Conversation[] @relation("RelatedPatient")
+  admissions       Admission[]
+  labOrders        LabOrder[]
+
+  @@map("patients")
+}
+
+model Doctor {
+  id                  String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String               @unique @map("user_id") @db.Uuid
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization      String               @db.VarChar(100)
+  licenseNumber       String               @unique @map("license_number") @db.VarChar(50)
+  bio                 String?
+  consultDurationMin  Int                  @default(15) @map("consult_duration_min")
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime             @default(now()) @map("updated_at") @db.Timestamptz
+  departmentId        String?              @map("department_id") @db.Uuid
+  department          Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  availabilities      DoctorAvailability[]
+  appointments        Appointment[]
+  medicalRecords      MedicalRecord[]      @relation("DoctorMedicalRecords")
+  referringReferrals  Referral[]           @relation("ReferringDoctor")
+  referredToReferrals Referral[]           @relation("ReferredToDoctor")
+  admissions          Admission[]          @relation("AdmittingDoctor")
+  labOrders           LabOrder[]           @relation("OrderingDoctor")
+  headedDepartments   Department[]         @relation("HeadDoctor")
+
+  @@map("doctors")
+}
+
+model DoctorAvailability {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  doctorId  String   @map("doctor_id") @db.Uuid
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  dayOfWeek Int      @map("day_of_week") @db.SmallInt
+  startTime DateTime @map("start_time") @db.Time(6)
+  endTime   DateTime @map("end_time") @db.Time(6)
+
+  @@map("doctor_availability")
+}
+
+model Appointment {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId     String            @map("patient_id") @db.Uuid
+  patient       Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId      String            @map("doctor_id") @db.Uuid
+  doctor        Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  scheduledAt   DateTime          @map("scheduled_at") @db.Timestamptz
+  status        AppointmentStatus @default(pending)
+  queuePosition Int?              @map("queue_position")
+  reason        String?
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime          @default(now()) @map("updated_at") @db.Timestamptz
+  medicalRecord MedicalRecord?
+  payment       Payment?
+
+  @@map("appointments")
+}
+
+model MedicalRecord {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId     String         @map("patient_id") @db.Uuid
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId      String         @map("doctor_id") @db.Uuid
+  doctor        Doctor         @relation("DoctorMedicalRecords", fields: [doctorId], references: [id], onDelete: Restrict)
+  appointmentId String?        @unique @map("appointment_id") @db.Uuid
+  appointment   Appointment?   @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  diagnosis     String
+  notes         String?
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz
+  prescriptions Prescription[]
+  documents     Document[]
+
+  @@map("medical_records")
+}
+
+model Prescription {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  medicalRecordId       String                 @map("medical_record_id") @db.Uuid
+  medicalRecord         MedicalRecord          @relation(fields: [medicalRecordId], references: [id], onDelete: Cascade)
+  medication            String                 @db.VarChar(150)
+  dosage                String                 @db.VarChar(100)
+  instructions          String?
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz
+  inventoryTransactions InventoryTransaction[]
+
+  @@map("prescriptions")
+}
+
+model Document {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  medicalRecordId String        @map("medical_record_id") @db.Uuid
+  medicalRecord   MedicalRecord @relation(fields: [medicalRecordId], references: [id], onDelete: Cascade)
+  fileUrl         String        @map("file_url")
+  fileType        String        @map("file_type") @db.VarChar(50)
+  uploadedById    String        @map("uploaded_by") @db.Uuid
+  uploadedBy      User          @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: Restrict)
+  uploadedAt      DateTime      @default(now()) @map("uploaded_at") @db.Timestamptz
+  labResults      LabResult[]   @relation("LabResultDocument")
+
+  @@map("documents")
+}
+
+model Payment {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  appointmentId  String        @unique @map("appointment_id") @db.Uuid
+  appointment    Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  amount         Decimal       @db.Decimal(10, 2)
+  method         PaymentMethod
+  status         PaymentStatus @default(pending)
+  transactionRef String?       @unique @map("transaction_ref") @db.VarChar(100)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime      @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("payments")
+}
+
+model Notification {
+  id        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String             @map("user_id") @db.Uuid
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  message   String
+  status    NotificationStatus @default(queued)
+  sentAt    DateTime?          @map("sent_at") @db.Timestamptz
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String   @db.VarChar(50)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String   @map("entity_id") @db.Uuid
+  timestamp  DateTime @default(now()) @db.Timestamptz
+
+  @@map("audit_logs")
+}
+
+model Department {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String          @unique @db.VarChar(100)
+  description         String?
+  headDoctorId        String?         @map("head_doctor_id") @db.Uuid
+  headDoctor          Doctor?         @relation("HeadDoctor", fields: [headDoctorId], references: [id], onDelete: SetNull)
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  doctors             Doctor[]
+  staff               Staff[]
+  referringReferrals  Referral[]      @relation("ReferringDepartment")
+  referredToReferrals Referral[]      @relation("ReferredToDepartment")
+  wards               Ward[]
+  labOrders           LabOrder[]
+  inventoryItems      InventoryItem[]
+
+  @@map("departments")
+}
+
+model Staff {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String     @unique @map("user_id") @db.Uuid
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  departmentId String     @map("department_id") @db.Uuid
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  position     String     @db.VarChar(100)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime   @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@map("staff")
+}
+
+model Referral {
+  id                     String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId              String          @map("patient_id") @db.Uuid
+  patient                Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  referringDoctorId      String          @map("referring_doctor_id") @db.Uuid
+  referringDoctor        Doctor          @relation("ReferringDoctor", fields: [referringDoctorId], references: [id], onDelete: Restrict)
+  referringDepartmentId  String          @map("referring_department_id") @db.Uuid
+  referringDepartment    Department      @relation("ReferringDepartment", fields: [referringDepartmentId], references: [id], onDelete: Restrict)
+  referredToDepartmentId String          @map("referred_to_department_id") @db.Uuid
+  referredToDepartment   Department      @relation("ReferredToDepartment", fields: [referredToDepartmentId], references: [id], onDelete: Restrict)
+  referredToDoctorId     String?         @map("referred_to_doctor_id") @db.Uuid
+  referredToDoctor       Doctor?         @relation("ReferredToDoctor", fields: [referredToDoctorId], references: [id], onDelete: SetNull)
+  reason                 String
+  status                 ReferralStatus  @default(pending)
+  createdAt              DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime        @default(now()) @map("updated_at") @db.Timestamptz
+  conversations          Conversation[]
+
+  @@map("referrals")
+}
+
+model Conversation {
+  id                String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type              ConversationType          @default(direct)
+  relatedPatientId  String?                   @map("related_patient_id") @db.Uuid
+  relatedPatient    Patient?                  @relation("RelatedPatient", fields: [relatedPatientId], references: [id], onDelete: SetNull)
+  relatedReferralId String?                   @map("related_referral_id") @db.Uuid
+  relatedReferral   Referral?                 @relation(fields: [relatedReferralId], references: [id], onDelete: SetNull)
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz
+  participants      ConversationParticipant[]
+  messages          Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id") @db.Uuid
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt       DateTime     @default(now()) @map("joined_at") @db.Timestamptz
+
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String               @map("conversation_id") @db.Uuid
+  conversation   Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String               @map("sender_id") @db.Uuid
+  sender         User                 @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content        String
+  attachmentUrl  String?              @map("attachment_url")
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  readReceipts   MessageReadReceipt[]
+
+  @@map("messages")
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId String   @map("message_id") @db.Uuid
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime @default(now()) @map("read_at") @db.Timestamptz
+
+  @@unique([messageId, userId])
+  @@map("message_read_receipts")
+}
+
+model Ward {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String     @db.VarChar(100)
+  departmentId String     @map("department_id") @db.Uuid
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  capacity     Int
+  beds         Bed[]
+
+  @@map("wards")
+}
+
+model Bed {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wardId     String      @map("ward_id") @db.Uuid
+  ward       Ward        @relation(fields: [wardId], references: [id], onDelete: Cascade)
+  bedNumber  String      @map("bed_number") @db.VarChar(20)
+  status     BedStatus   @default(available)
+  admissions Admission[]
+
+  @@unique([wardId, bedNumber])
+  @@map("beds")
+}
+
+model Admission {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId         String          @map("patient_id") @db.Uuid
+  patient           Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  bedId             String          @map("bed_id") @db.Uuid
+  bed               Bed             @relation(fields: [bedId], references: [id], onDelete: Restrict)
+  admittingDoctorId String          @map("admitting_doctor_id") @db.Uuid
+  admittingDoctor   Doctor          @relation("AdmittingDoctor", fields: [admittingDoctorId], references: [id], onDelete: Restrict)
+  admittedAt        DateTime        @default(now()) @map("admitted_at") @db.Timestamptz
+  dischargedAt      DateTime?       @map("discharged_at") @db.Timestamptz
+  reason            String
+  status            AdmissionStatus @default(admitted)
+
+  @@map("admissions")
+}
+
+model LabOrder {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId        String         @map("patient_id") @db.Uuid
+  patient          Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  orderingDoctorId String         @map("ordering_doctor_id") @db.Uuid
+  orderingDoctor   Doctor         @relation("OrderingDoctor", fields: [orderingDoctorId], references: [id], onDelete: Restrict)
+  departmentId     String         @map("department_id") @db.Uuid
+  department       Department     @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  testName         String         @map("test_name") @db.VarChar(150)
+  status           LabOrderStatus @default(ordered)
+  orderedAt        DateTime       @default(now()) @map("ordered_at") @db.Timestamptz
+  completedAt      DateTime?      @map("completed_at") @db.Timestamptz
+  labResult        LabResult?
+
+  @@map("lab_orders")
+}
+
+model LabResult {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  labOrderId     String    @unique @map("lab_order_id") @db.Uuid
+  labOrder       LabOrder  @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+  resultSummary  String    @map("result_summary")
+  fileDocumentId String?   @map("file_document_id") @db.Uuid
+  fileDocument   Document? @relation("LabResultDocument", fields: [fileDocumentId], references: [id], onDelete: SetNull)
+  recordedById   String    @map("recorded_by") @db.Uuid
+  recordedBy     User      @relation("RecordedLabResults", fields: [recordedById], references: [id], onDelete: Restrict)
+  recordedAt     DateTime  @default(now()) @map("recorded_at") @db.Timestamptz
+
+  @@map("lab_results")
+}
+
+model InventoryItem {
+  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String                 @db.VarChar(150)
+  category        String                 @db.VarChar(50)
+  unit            String                 @db.VarChar(20)
+  quantityInStock Int                    @default(0) @map("quantity_in_stock")
+  reorderLevel    Int                    @default(10) @map("reorder_level")
+  departmentId    String                 @map("department_id") @db.Uuid
+  department      Department             @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  transactions    InventoryTransaction[]
+
+  @@map("inventory_items")
+}
+
+model InventoryTransaction {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itemId                String        @map("item_id") @db.Uuid
+  item                  InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  changeQuantity        Int           @map("change_quantity")
+  reason                String        @db.VarChar(100)
+  relatedPrescriptionId String?       @map("related_prescription_id") @db.Uuid
+  prescription          Prescription? @relation(fields: [relatedPrescriptionId], references: [id], onDelete: SetNull)
+  performedById         String        @map("performed_by") @db.Uuid
+  performedBy           User          @relation("PerformedTransactions", fields: [performedById], references: [id], onDelete: Restrict)
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("inventory_transactions")
+}
