@@ -1,3 +1,4 @@
+import { API_BASE } from './lib/api'
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -73,7 +74,7 @@ export default function App() {
 
   useEffect(() => {
     if (token) {
-      fetch('http://localhost:5000/auth/me', {
+      fetch(`${API_BASE}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       })
@@ -90,7 +91,7 @@ export default function App() {
   }, [token])
 
   const login = async (email: string, password: string) => {
-    const res = await fetch('http://localhost:5000/auth/login', {
+    const res = await fetch(`${API_BASE}/auth/login`,  {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -104,7 +105,7 @@ export default function App() {
   }
 
   const register = async (input: any) => {
-    const res = await fetch('http://localhost:5000/auth/register', {
+    const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
@@ -113,7 +114,7 @@ export default function App() {
   }
 
   const logout = () => {
-    fetch('http://localhost:5000/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {})
+    fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {})
     setToken(null)
     setUser(null)
     sessionStorage.removeItem('token')
