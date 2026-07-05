@@ -7,8 +7,7 @@ const router = Router();
 const ctrl = new UsersController();
 
 // Admin-only user management
-router.get('/', authenticateJWT, requireRoles([UserRole.ADMIN]), ctrl.list.bind(ctrl));
-router.get('/doctors', authenticateJWT, ctrl.listDoctors.bind(ctrl));
+router.get('/', authenticateJWT, requireRoles([UserRole.ADMIN, UserRole.DOCTOR]), ctrl.list.bind(ctrl));router.get('/doctors', authenticateJWT, ctrl.listDoctors.bind(ctrl));
 router.get('/staff', authenticateJWT, ctrl.listStaff.bind(ctrl));
 router.get('/:id', authenticateJWT, ctrl.getById.bind(ctrl));
 router.put('/:id', authenticateJWT, requireRoles([UserRole.ADMIN]), ctrl.update.bind(ctrl));
