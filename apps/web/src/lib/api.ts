@@ -38,7 +38,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
       return retry.json()
     }
     sessionStorage.removeItem('token')
-    window.location.href = '/login'
+    globalThis.location.href = '/login'
     throw new ApiError({ message: 'Session expired' }, 401)
   }
 

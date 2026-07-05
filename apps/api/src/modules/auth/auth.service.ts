@@ -103,24 +103,31 @@ export class AuthService {
         id: string;
         email: string;
         role: UserRole;
+        departmentId?: string | null;
       };
 
       const user = await prisma.user.findUnique({
         where: { id: decoded.id },
+        include: {
+          doctor: { select: { departmentId: true } },
+          staff: { select: { departmentId: true } },
+        },
       });
 
       if (!user || !user.isActive) {
         throw new Error('User not found or inactive');
       }
 
+      const departmentId = user.doctor?.departmentId || user.staff?.departmentId || null;
+
       const accessToken = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
+        { id: user.id, email: user.email, role: user.role, departmentId },
         this.getAccessSecret(),
         { expiresIn: ACCESS_TOKEN_EXPIRY }
       );
 
       const newRefreshToken = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
+        { id: user.id, email: user.email, role: user.role, departmentId },
         this.getRefreshSecret(),
         { expiresIn: REFRESH_TOKEN_EXPIRY }
       );
@@ -132,6 +139,7 @@ export class AuthService {
           id: user.id,
           email: user.email,
           role: user.role,
+          departmentId,
         },
       };
     } catch (error) {
