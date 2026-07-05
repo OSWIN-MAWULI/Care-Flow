@@ -9,9 +9,11 @@ export function StaffDashboard() {
   const [stats, setStats] = useState({ labOrders: 0, referrals: 0, lowStock: 0 })
 
   useEffect(() => {
-    apiFetch('/lab-orders/department/placeholder').then(d => setStats(s => ({ ...s, labOrders: Array.isArray(d) ? d.length : 0 }))).catch(() => {})
+    if (user?.departmentId) {
+      apiFetch(`/lab-orders/department/${user.departmentId}`).then(d => setStats(s => ({ ...s, labOrders: Array.isArray(d) ? d.length : 0 }))).catch(() => {})
+    }
     apiFetch('/inventory/low-stock').then((d: any[]) => setStats(s => ({ ...s, lowStock: d.length }))).catch(() => {})
-  }, [])
+  }, [user?.departmentId])
 
   return (
     <div>

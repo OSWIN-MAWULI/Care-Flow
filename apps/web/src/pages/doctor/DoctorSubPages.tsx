@@ -126,12 +126,14 @@ function DoctorLabOrders() {
   const [form, setForm] = useState({ patientId: '', departmentId: '', testName: '' })
   const [patients, setPatients] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])
+  const { user } = useAuth()
 
   useEffect(() => {
     apiFetch('/users?role=patient&limit=50').then((d: any) => setPatients(d.users || [])).catch(() => {})
     apiFetch('/departments').then(setDepartments).catch(() => {})
-    apiFetch('/lab-orders/department/placeholder').then(setOrders).catch(() => {})
-  }, [])
+    if (!user?.departmentId) return
+    apiFetch(`/lab-orders/department/${user.departmentId}`).then(setOrders).catch(() => {})
+  }, [user?.departmentId])
 
   const handleCreate = async () => {
     try {
@@ -383,7 +385,11 @@ export function StaffSubPages() {
 // --- Staff Referrals ---
 function StaffReferrals() {
   const [referrals, setReferrals] = useState<any[]>([])
-  useEffect(() => { apiFetch('/referrals/department/placeholder').then(setReferrals).catch(() => {}) }, [])
+  const { user } = useAuth()
+  useEffect(() => {
+    if (!user?.departmentId) return
+    apiFetch(`/referrals/department/${user.departmentId}`).then(setReferrals).catch(() => {})
+  }, [user?.departmentId])
 
   return (
     <div>
@@ -410,8 +416,12 @@ function StaffReferrals() {
 function StaffLabWorklist() {
   const [orders, setOrders] = useState<any[]>([])
   const [resultForm, setResultForm] = useState<Record<string, string>>({})
+  const { user } = useAuth()
 
-  useEffect(() => { apiFetch('/lab-orders/department/placeholder').then(setOrders).catch(() => {}) }, [])
+  useEffect(() => {
+    if (!user?.departmentId) return
+    apiFetch(`/lab-orders/department/${user.departmentId}`).then(setOrders).catch(() => {})
+  }, [user?.departmentId])
 
   const updateStatus = async (id: string, status: string) => {
     try {

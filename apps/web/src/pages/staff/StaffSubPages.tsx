@@ -1,11 +1,16 @@
+import { useAuth } from '../../App'
 import React, { useEffect, useState } from 'react'
 import { apiFetch } from '../../lib/api'
 import { Route, Routes } from 'react-router-dom'
 import { ArrowRightLeft, FlaskConical, Pill, MessageSquare, Activity } from 'lucide-react'
 
 function StaffReferrals() {
+  const { user } = useAuth()
   const [referrals, setReferrals] = useState<any[]>([])
-  useEffect(() => { apiFetch('/referrals/department/placeholder').then(setReferrals).catch(() => {}) }, [])
+  useEffect(() => {
+    if (!user?.departmentId) return
+    apiFetch(`/referrals/department/${user.departmentId}`).then(setReferrals).catch(() => {})
+  }, [user?.departmentId])
 
   return (
     <div>
@@ -34,11 +39,14 @@ function StaffReferrals() {
 }
 
 function StaffLabWorklist() {
+  const { user } = useAuth()
   const [orders, setOrders] = useState<any[]>([])
   const [resultForm, setResultForm] = useState<Record<string, string>>({})
 
-  useEffect(() => { apiFetch('/lab-orders/department/placeholder').then(setOrders).catch(() => {}) }, [])
-
+  useEffect(() => {
+    if (!user?.departmentId) return
+    apiFetch(`/lab-orders/department/${user.departmentId}`).then(setOrders).catch(() => {})
+  }, [user?.departmentId])
   const updateStatus = async (id: string, status: string) => {
     try {
       await apiFetch(`/lab-orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) })

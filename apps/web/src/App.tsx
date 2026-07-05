@@ -1,14 +1,11 @@
 import { API_BASE } from './lib/api'
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { LoginPage } from './pages/auth/LoginPage'
 import { RegisterPage } from './pages/auth/RegisterPage'
 import { PatientDashboard } from './pages/patient/PatientDashboard'
-import { DoctorDashboard } from './pages/doctor/DoctorDashboard'
-import { AdminDashboard } from './pages/admin/AdminDashboard'
-import { StaffDashboard } from './pages/staff/StaffDashboard'
 import { AppLayout } from './layout/AppLayout'
 import { MyAppointments, BookAppointment, MyRecords, DepartmentsDirectory } from './pages/patient/PatientPages'
 import { DoctorSubPages } from './pages/doctor/DoctorSubPages'
@@ -21,6 +18,7 @@ type User = {
   id: string
   email: string
   role: 'patient' | 'doctor' | 'admin' | 'staff'
+  departmentId?: string | null
 }
 
 type AuthContextType = {
@@ -43,7 +41,9 @@ export const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext)
 
-function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
+type ProtectedRouteProps = Readonly<{ children: React.ReactNode; roles?: User['role'][] }>
+
+function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   const { user, loading } = useAuth()
 
   if (loading) return <div className="flex h-screen items-center justify-center"><div className="skeleton h-8 w-8 rounded-full" /></div>
@@ -90,7 +90,7 @@ export default function App() {
     }
   }, [token])
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     const res = await fetch(`${API_BASE}/auth/login`,  {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -102,31 +102,36 @@ export default function App() {
     setToken(data.accessToken)
     setUser(data.user)
     sessionStorage.setItem('token', data.accessToken)
-  }
+  }, [setToken, setUser])
 
-  const register = async (input: any) => {
+  const register = useCallback(async (input: any) => {
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     })
     if (!res.ok) { const err = await res.json(); throw new Error(err.message) }
-  }
+  }, [])
 
-  const logout = () => {
+  const logout = useCallback(() => {
     fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {})
     setToken(null)
     setUser(null)
     sessionStorage.removeItem('token')
-  }
+  }, [setToken, setUser])
+
+  const authContextValue = useMemo(
+    () => ({ user, token, login, register, logout, loading }),
+    [user, token, login, register, logout, loading],
+  )
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={{ user, token, login, register, logout, loading }}>
+      <AuthContext.Provider value={authContextValue}>
         <BrowserRouter>
           <Routes>
-            <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
-            <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/" />} />
+            <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
+            <Route path="/register" element={user ? <Navigate to="/" /> : <RegisterPage />} />
             <Route path="/" element={<DashboardRouter />} />
 
             <Route path="/patient/*" element={<ProtectedRoute roles={['patient']}><AppLayout role="patient"><Routes>
