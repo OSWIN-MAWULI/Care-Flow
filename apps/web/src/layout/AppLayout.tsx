@@ -11,36 +11,36 @@ import { cn } from '../lib/utils'
 
 const roleNav: Record<string, { to: string; label: string; icon: React.ReactNode }[]> = {
   patient: [
-    { to: 'dashboard', label: 'Dashboard', icon: <Activity size={18} /> },
-    { to: 'appointments', label: 'My Appointments', icon: <Calendar size={18} /> },
-    { to: 'records', label: 'Medical Records', icon: <FileText size={18} /> },
-    { to: 'book', label: 'Book Appointment', icon: <Users size={18} /> },
-    { to: 'departments', label: 'Departments', icon: <Hospital size={18} /> },
+    { to: '/patient/dashboard', label: 'Dashboard', icon: <Activity size={18} /> },
+    { to: '/patient/appointments', label: 'My Appointments', icon: <Calendar size={18} /> },
+    { to: '/patient/records', label: 'Medical Records', icon: <FileText size={18} /> },
+    { to: '/patient/book', label: 'Book Appointment', icon: <Users size={18} /> },
+    { to: '/patient/departments', label: 'Departments', icon: <Hospital size={18} /> },
   ],
   doctor: [
-    { to: 'dashboard', label: 'Dashboard', icon: <Activity size={18} /> },
-    { to: 'schedule', label: 'My Schedule', icon: <Calendar size={18} /> },
-    { to: 'patients', label: 'Patients', icon: <Users size={18} /> },
-    { to: 'referrals', label: 'Referrals', icon: <ArrowRightLeft size={18} /> },
-    { to: 'lab-orders', label: 'Lab Orders', icon: <FlaskConical size={18} /> },
-    { to: 'admissions', label: 'Admissions', icon: <Warehouse size={18} /> },
-    { to: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
-    { to: 'messages', label: 'Messages', icon: <MessageSquare size={18} /> },
+    { to: '/doctor/dashboard', label: 'Dashboard', icon: <Activity size={18} /> },
+    { to: '/doctor/schedule', label: 'My Schedule', icon: <Calendar size={18} /> },
+    { to: '/doctor/patients', label: 'Patients', icon: <Users size={18} /> },
+    { to: '/doctor/referrals', label: 'Referrals', icon: <ArrowRightLeft size={18} /> },
+    { to: '/doctor/lab-orders', label: 'Lab Orders', icon: <FlaskConical size={18} /> },
+    { to: '/doctor/admissions', label: 'Admissions', icon: <Warehouse size={18} /> },
+    { to: '/doctor/analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
+    { to: '/doctor/messages', label: 'Messages', icon: <MessageSquare size={18} /> },
   ],
   admin: [
-    { to: 'dashboard', label: 'Dashboard', icon: <Activity size={18} /> },
-    { to: 'users', label: 'Users', icon: <UserCog size={18} /> },
-    { to: 'departments', label: 'Departments', icon: <Hospital size={18} /> },
-    { to: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
-    { to: 'inventory', label: 'Inventory', icon: <Pill size={18} /> },
-    { to: 'messages', label: 'Messages', icon: <MessageSquare size={18} /> },
+    { to: '/admin/dashboard', label: 'Dashboard', icon: <Activity size={18} /> },
+    { to: '/admin/users', label: 'Users', icon: <UserCog size={18} /> },
+    { to: '/admin/departments', label: 'Departments', icon: <Hospital size={18} /> },
+    { to: '/admin/analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
+    { to: '/admin/inventory', label: 'Inventory', icon: <Pill size={18} /> },
+    { to: '/admin/messages', label: 'Messages', icon: <MessageSquare size={18} /> },
   ],
   staff: [
-    { to: 'dashboard', label: 'Dashboard', icon: <Activity size={18} /> },
-    { to: 'referrals', label: 'Referrals', icon: <ArrowRightLeft size={18} /> },
-    { to: 'lab-worklist', label: 'Lab Worklist', icon: <FlaskConical size={18} /> },
-    { to: 'inventory', label: 'Inventory', icon: <Pill size={18} /> },
-    { to: 'messages', label: 'Messages', icon: <MessageSquare size={18} /> },
+    { to: '/staff/dashboard', label: 'Dashboard', icon: <Activity size={18} /> },
+    { to: '/staff/referrals', label: 'Referrals', icon: <ArrowRightLeft size={18} /> },
+    { to: '/staff/lab-worklist', label: 'Lab Worklist', icon: <FlaskConical size={18} /> },
+    { to: '/staff/inventory', label: 'Inventory', icon: <Pill size={18} /> },
+    { to: '/staff/messages', label: 'Messages', icon: <MessageSquare size={18} /> },
   ],
 }
 
@@ -81,7 +81,7 @@ export function AppLayout({ children, role }: { children: React.ReactNode; role:
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === 'dashboard'}
+              end={item.to.endsWith('/dashboard')}
               className={({ isActive }) =>
                 cn('sidebar-link', isActive ? 'sidebar-link-active' : 'sidebar-link-inactive text-[var(--sidebar-foreground)]/70 hover:text-[var(--sidebar-foreground)] hover:bg-white/5')
               }
